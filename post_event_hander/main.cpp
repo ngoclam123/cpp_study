@@ -6,7 +6,7 @@
 class EventhandlerImpl: public EventHandler
 {
 public:
-    enum class event_t
+    enum event_t: uint16_t
     {
         event1 = 1,
         event2 = 2,
@@ -14,14 +14,13 @@ public:
 
     void handleEvent(const uint16_t& event) override
     {
-        std::cout << __func__ << " " << event << std::endl;
         switch (event)
         {
-        case 1:
-            std::cout << "receive event1 at " << EventBox::getCurrentTime() << std::endl;
+        case event_t::event1:
+            printf("receive event1 at %ld\n", EventBox::getCurrentTime());
             break;
-        case 2:
-            std::cout << "receive event2 at " << EventBox::getCurrentTime() << std::endl;
+        case event_t::event2:
+            printf("receive event2 at %ld\n", EventBox::getCurrentTime());
             break;
         default:
             break;
@@ -31,18 +30,13 @@ public:
 
 int main()
 {
-    // printf("Hello World!");
-    std::cout << "Hello World!" << std::endl;
+    printf("Hello world!!\nProcess started at %ld\n", EventBox::getCurrentTime());
+    // below objects must be retain till the end of the program
     std::unique_ptr<EventHandler> ehi = std::make_unique<EventhandlerImpl>();
     std::unique_ptr<EventBox> eb = std::make_unique<EventBox>(std::move(ehi));
-    sleep(1);
-    eb->postEventDelay(1, 5000);
-    // sleep(2);
-    // eb->postEventDelay(2, 2000);
+    eb->postEventDelay(EventhandlerImpl::event_t::event1, 2000);
     // sleep(3);
-    // eb->postEventDelay(2, 2000);
-    // sleep(4);
-    // eb->postEventDelay(2, 2000);
+    eb->postEventDelay(EventhandlerImpl::event_t::event2, 2000);
     while (true)
     {
         sleep(2);

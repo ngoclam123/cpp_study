@@ -25,7 +25,7 @@ EventBox::EventBox(eh_ptr _eh)
 
 void EventBox::processEventBox()
 {
-    std::cout << "start " << __func__ << std::endl;
+    printf("%s started\n", __func__);
     while(true)
     {
         std::unique_lock<std::mutex> lk(eventBoxMtx);
@@ -47,6 +47,7 @@ void EventBox::processEventBox()
                     handlerThread.detach();
                 }
             }
+            else { break;}
         }
         for (auto& time: eraseList)
         {
@@ -83,7 +84,7 @@ void EventBox::postEventDelay(const uint16_t& event, const uint64_t& duration)
             eventBox.insert({executedTime, eventList});
         }
     }
-    printMap(eventBox);
+    // printMap(eventBox);
     eventBoxCv.notify_all();
 }
 

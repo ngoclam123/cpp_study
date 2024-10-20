@@ -1,12 +1,14 @@
 #ifndef __POST_EVENT_HANDLER_HEADER_H__
 #define __POST_EVENT_HANDLER_HEADER_H__
 
+#include <iostream>
 #include <list>
 #include <map>
 #include <chrono>
 #include <thread>
 #include <condition_variable>
 #include <time.h>
+#include <memory>
 
 // Should be replaced by loggin later
 #include <cstdio>
@@ -28,33 +30,33 @@ public:
 
 class EventBox
 {
+    using eh_ptr = std::unique_ptr<EventHandler>;
 private:
     //! @brief this container contain map executed time- event list from shortest to longest
     //! @note Executed time is calculated by duration + monil
     std::map<uint64_t, std::list<int>> eventBox;
-
+    //! @brief Mutex to protect event box
     std::mutex eventBoxMtx;
+    //! @brief condition variable
+    std::condition_variable eventBoxCv;
+    //! @brief pointer to implementation of handler;
+    eh_ptr eh;
+
+private:
     
     /**
      * @brief Start process event box
      * 
      */
     void processEventBox();
-    
-    /**
-     * @brief Find the shortest executed time that shorter input
-     * 
-     * @param[in] executedTime 
-     */
-    uint64_t getShorter(const uint64_t& executedTime);
 
+public:
     /**
      * @brief Get the system uptime, MONOTONIC.
      * 
      * @return[out] uint64_t in miliseconds
      */
-    uint64_t getCurrentTime();
-public:
+    static uint64_t getCurrentTime();
 
     /**
      * @brief Process input event after the duration milisec delay
@@ -73,7 +75,7 @@ public:
     
 public:
 
-    EventBox();
+    EventBox(eh_ptr _eh);
     ~EventBox() = default;
 };
 

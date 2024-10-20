@@ -1,27 +1,58 @@
 #include "post_event_handler.h"
 
-
-EventBox::EventBox()
+static void printMap(std::map<uint64_t, std::list<int>> eventBox)
 {
+    for(auto& timeEvent: eventBox)
+    {
+        for(auto& event: timeEvent.second)
+        {
+            printf("time %ld event %d\n", timeEvent.first, event);
+        }
+    }
+    printf("\n");
+}
+
+EventBox::EventBox(eh_ptr _eh)
+{
+    eh = std::move(_eh);
     eventBox.clear();
+    std::thread processThread([this]()
+    {
+        processEventBox();
+    });
+    processThread.detach();
 }
 
 void EventBox::processEventBox()
 {
-
-}
-
-uint64_t EventBox::getShorter(const uint64_t& executedTime)
-{
-    std::lock_guard<std::mutex> lk(eventBoxMtx);
-    for(auto& pair: eventBox)
+    std::cout << "start " << __func__ << std::endl;
+    while(true)
     {
-        if (pair.first <= executedTime)
+        std::unique_lock<std::mutex> lk(eventBoxMtx);
+        uint64_t sleepDur = 500U;
+        if (eventBox.size() > 0) sleepDur = eventBox.begin()->first - getCurrentTime();
+        eventBoxCv.wait_for(lk, std::chrono::milliseconds(sleepDur));
+        uint64_t monoNow = getCurrentTime();
+        std::list<uint64_t> eraseList;
+        for( auto& timeEventsPair: eventBox)
         {
-            return pair.first;
+            if (timeEventsPair.first <= monoNow)
+            {
+                eraseList.push_back(timeEventsPair.first);
+                for( auto& event: timeEventsPair.second)
+                {
+                    std::thread handlerThread([this, event]{
+                        eh->handleEvent(event);
+                    });
+                    handlerThread.detach();
+                }
+            }
+        }
+        for (auto& time: eraseList)
+        {
+            eventBox.erase(time);
         }
     }
-    return executedTime;
 }
 
 uint64_t EventBox::getCurrentTime()
@@ -29,31 +60,34 @@ uint64_t EventBox::getCurrentTime()
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
     {
-        printf("%s fail %d", __func__, errno);
         // if fail, execute immediately
         return 0;
     }
-    return ts.tv_nsec*1000000;
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
 void EventBox::postEventDelay(const uint16_t& event, const uint64_t& duration)
 {
     const uint64_t executedTime = getCurrentTime() + duration;
-
     // can execute more than 1 event at the same time
-    auto it = eventBox.find(executedTime);
-    if (it != eventBox.end())
     {
-        it->second.push_back(event);
-        return;
+        std::lock_guard<std::mutex> lk(eventBoxMtx);
+        auto it = eventBox.find(executedTime);
+        if (it != eventBox.end())
+        {
+            it->second.push_back(event);
+        }
+        else
+        {
+            std::list<int> eventList = {event};
+            eventBox.insert({executedTime, eventList});
+        }
     }
-
-    // the shorest executed time that shorter
-
+    printMap(eventBox);
+    eventBoxCv.notify_all();
 }
 
 void EventBox::postEvent(const uint16_t& event)
 {
-    printf("%s %d", __func__, event);
     postEventDelay(event, 0);
 }

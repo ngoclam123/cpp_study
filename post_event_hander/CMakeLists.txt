@@ -9,4 +9,4 @@ add_executable(post_event_handler
 target_include_directories(post_event_handler PUBLIC
     inc/)
 
-target_compile_options(post_event_handler PUBLIC -g)
+target_compile_options(post_event_handler PUBLIC -g -Wall)

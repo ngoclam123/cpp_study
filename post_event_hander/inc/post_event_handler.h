@@ -72,6 +72,14 @@ public:
      * @param[in] event 
      */
     void postEvent(const uint16_t& event);
+
+    /**
+     * @brief Cancel event
+     * @note call this method frequently cause bad performance
+     * @param event 
+     * @return true on found and removed sucessfully otherwise false
+     */
+    // bool cancelEvent(const uint16_t& event);
     
 public:
 

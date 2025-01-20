@@ -44,7 +44,7 @@ void EventBox::processEventBox()
                     std::thread handlerThread([this, event]{
                         eh->handleEvent(event);
                     });
-                    handlerThread.detach();
+                    handlerThread.join();
                 }
             }
             else { break;}
@@ -92,3 +92,27 @@ void EventBox::postEvent(const uint16_t& event)
 {
     postEventDelay(event, 0);
 }
+
+// bool EventBox::cancelEvent(const uint16_t& event)
+// {
+//     {
+//         std::lock_guard<std::mutex> lk(eventBoxMtx);
+//         auto it = eventBox.find(executedTime);
+//         if (it != eventBox.end())
+//         {
+//             it->second.push_back(event);
+//         }
+//         else
+//         {
+//             std::list<int> eventList = {event};
+//             eventBox.insert({executedTime, eventList});
+//         }
+        
+//         for (auto& timeEvent: eventBox)
+//         {
+//             for (auto time: )
+//         }
+//     }
+//     // printMap(eventBox);
+//     eventBoxCv.notify_all();
+// }

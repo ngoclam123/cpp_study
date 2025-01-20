@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <iostream>
 #include "inc/post_event_handler.h"
+#include <thread>
+#include <functional>
 
 class EventhandlerImpl: public EventHandler
 {
@@ -17,12 +19,13 @@ public:
         switch (event)
         {
         case event_t::event1:
-            printf("receive event1 at %ld\n", EventBox::getCurrentTime());
+            printf("receive event1 at %ld executed trhread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
             break;
         case event_t::event2:
-            printf("receive event2 at %ld\n", EventBox::getCurrentTime());
+            printf("receive event2 at %ld executed trhread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
             break;
         default:
+            printf("Invalid event\n");
             break;
         }
     }

@@ -26,13 +26,14 @@ EventBox::EventBox(eh_ptr _eh)
 void EventBox::processEventBox()
 {
     printf("%s started\n", __func__);
+    int64_t sleepDur = 500;
     while(true)
     {
-        std::list<int> executedEvent;
+        std::list<uint16_t> executedEvent;
         {
             std::unique_lock<std::mutex> lk(eventBoxMtx);
-            uint64_t sleepDur = 500U;
-            if (eventBox.size() > 0) sleepDur = eventBox.begin()->first - getCurrentTime();
+            sleepDur = (eventBox.size() > 0)? (eventBox.begin()->first - getCurrentTime()) : sleepDur;
+            sleepDur = sleepDur < 0 ? 0 : sleepDur; // incase getCurrentTime() jump to next miliseconds -> sleep for so long
             eventBoxCv.wait_for(lk, std::chrono::milliseconds(sleepDur));
             uint64_t monoNow = getCurrentTime();
             std::list<uint64_t> eraseList;
@@ -53,7 +54,7 @@ void EventBox::processEventBox()
                 eventBox.erase(time);
             }
         }
-        for (auto& event: executedEvent)
+        for (const auto& event: executedEvent)
         {
             std::thread handlerThread([this, event]{
                 eh->handleEvent(event);
@@ -90,8 +91,8 @@ void EventBox::postEventDelay(const uint16_t& event, const uint64_t& duration)
             std::list<int> eventList = {event};
             eventBox.insert({executedTime, eventList});
         }
+        // printMap(eventBox);
     }
-    // printMap(eventBox);
     eventBoxCv.notify_all();
 }
 

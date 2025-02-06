@@ -5,6 +5,7 @@
 #include <thread>
 #include <functional>
 
+std::unique_ptr<EventBox> eb;
 class EventhandlerImpl: public EventHandler
 {
 public:
@@ -19,10 +20,11 @@ public:
         switch (event)
         {
         case event_t::event1:
-            printf("receive event1 at %ld executed trhread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
+            printf("receive event1 at %ld executed thread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
             break;
         case event_t::event2:
-            printf("receive event2 at %ld executed trhread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
+            printf("receive event2 at %ld executed thread: %ld\n", EventBox::getCurrentTime(), std::hash<std::thread::id>{}(std::this_thread::get_id()));
+            eb->postEventDelay(EventhandlerImpl::event_t::event2, 2000);
             break;
         default:
             printf("Invalid event\n");
@@ -36,9 +38,9 @@ int main()
     printf("Hello world!!\nProcess started at %ld\n", EventBox::getCurrentTime());
     // below objects must be retain till the end of the program
     std::unique_ptr<EventHandler> ehi = std::make_unique<EventhandlerImpl>();
-    std::unique_ptr<EventBox> eb = std::make_unique<EventBox>(std::move(ehi));
+    eb = std::make_unique<EventBox>(std::move(ehi));
     eb->postEventDelay(EventhandlerImpl::event_t::event1, 2000);
-    // sleep(3);
+    sleep(3);
     eb->postEventDelay(EventhandlerImpl::event_t::event2, 2000);
     while (true)
     {

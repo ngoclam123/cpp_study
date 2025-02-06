@@ -28,30 +28,37 @@ void EventBox::processEventBox()
     printf("%s started\n", __func__);
     while(true)
     {
-        std::unique_lock<std::mutex> lk(eventBoxMtx);
-        uint64_t sleepDur = 500U;
-        if (eventBox.size() > 0) sleepDur = eventBox.begin()->first - getCurrentTime();
-        eventBoxCv.wait_for(lk, std::chrono::milliseconds(sleepDur));
-        uint64_t monoNow = getCurrentTime();
-        std::list<uint64_t> eraseList;
-        for( auto& timeEventsPair: eventBox)
+        std::list<int> executedEvent;
         {
-            if (timeEventsPair.first <= monoNow)
+            std::unique_lock<std::mutex> lk(eventBoxMtx);
+            uint64_t sleepDur = 500U;
+            if (eventBox.size() > 0) sleepDur = eventBox.begin()->first - getCurrentTime();
+            eventBoxCv.wait_for(lk, std::chrono::milliseconds(sleepDur));
+            uint64_t monoNow = getCurrentTime();
+            std::list<uint64_t> eraseList;
+            for( auto& timeEventsPair: eventBox)
             {
-                eraseList.push_back(timeEventsPair.first);
-                for( auto& event: timeEventsPair.second)
+                if (timeEventsPair.first <= monoNow)
                 {
-                    std::thread handlerThread([this, event]{
-                        eh->handleEvent(event);
-                    });
-                    handlerThread.join();
+                    eraseList.push_back(timeEventsPair.first);
+                    for( auto& event: timeEventsPair.second)
+                    {
+                        executedEvent.push_back(event);
+                    }
                 }
+                else { break;}
             }
-            else { break;}
+            for (auto& time: eraseList)
+            {
+                eventBox.erase(time);
+            }
         }
-        for (auto& time: eraseList)
+        for (auto& event: executedEvent)
         {
-            eventBox.erase(time);
+            std::thread handlerThread([this, event]{
+                eh->handleEvent(event);
+            });
+            handlerThread.join();
         }
     }
 }

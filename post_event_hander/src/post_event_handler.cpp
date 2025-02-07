@@ -14,8 +14,14 @@ static void printMap(std::map<uint64_t, std::list<int>> eventBox)
 
 EventBox::EventBox(eh_ptr _eh)
 {
+    if (_eh.get() == nullptr)
+    {
+        fprintf(stdout, "Invalid Event Handler, never start Event Box processer");
+        return;
+    }
     eh = std::move(_eh);
     eventBox.clear();
+    
     std::thread processThread([this]()
     {
         processEventBox();
@@ -26,12 +32,12 @@ EventBox::EventBox(eh_ptr _eh)
 void EventBox::processEventBox()
 {
     printf("%s started\n", __func__);
-    int64_t sleepDur = 500;
     while(true)
     {
         std::list<uint16_t> executedEvent;
         {
             std::unique_lock<std::mutex> lk(eventBoxMtx);
+            int64_t sleepDur{500U};
             sleepDur = (eventBox.size() > 0)? (eventBox.begin()->first - getCurrentTime()) : sleepDur;
             sleepDur = sleepDur < 0 ? 0 : sleepDur; // incase getCurrentTime() jump to next miliseconds -> sleep for so long
             eventBoxCv.wait_for(lk, std::chrono::milliseconds(sleepDur));
@@ -42,24 +48,22 @@ void EventBox::processEventBox()
                 if (timeEventsPair.first <= monoNow)
                 {
                     eraseList.push_back(timeEventsPair.first);
-                    for( auto& event: timeEventsPair.second)
+                    for(const auto& event: timeEventsPair.second)
                     {
                         executedEvent.push_back(event);
                     }
                 }
-                else { break;}
+                else break;
             }
-            for (auto& time: eraseList)
+            for (const auto& time: eraseList)
             {
                 eventBox.erase(time);
             }
         }
+        
         for (const auto& event: executedEvent)
         {
-            std::thread handlerThread([this, event]{
-                eh->handleEvent(event);
-            });
-            handlerThread.join();
+            eh->handleEvent(event);
         }
     }
 }
@@ -100,27 +104,3 @@ void EventBox::postEvent(const uint16_t& event)
 {
     postEventDelay(event, 0);
 }
-
-// bool EventBox::cancelEvent(const uint16_t& event)
-// {
-//     {
-//         std::lock_guard<std::mutex> lk(eventBoxMtx);
-//         auto it = eventBox.find(executedTime);
-//         if (it != eventBox.end())
-//         {
-//             it->second.push_back(event);
-//         }
-//         else
-//         {
-//             std::list<int> eventList = {event};
-//             eventBox.insert({executedTime, eventList});
-//         }
-        
-//         for (auto& timeEvent: eventBox)
-//         {
-//             for (auto time: )
-//         }
-//     }
-//     // printMap(eventBox);
-//     eventBoxCv.notify_all();
-// }

@@ -1,92 +1,61 @@
-#ifndef __POST_EVENT_HANDLER_HEADER_H__
-#define __POST_EVENT_HANDLER_HEADER_H__
+#ifndef POST_EVENT_HANDLER_H
+#define POST_EVENT_HANDLER_H
 
-#include <iostream>
-#include <list>
-#include <map>
-#include <chrono>
-#include <thread>
-#include <condition_variable>
-#include <time.h>
-#include <memory>
-
-// Should be replaced by loggin later
+#include <cstdint>
 #include <cstdio>
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <map>
+#include <list>
+#include <utility> // For std::move
+#include <ctime>   // For clock_gettime
 
-//! This class must be singleton
-class EventHandler
+/**
+ * @brief An interface for a generic event handler.
+ * Users of EventBox should implement this interface.
+ */
+class IEventHandler
 {
 public:
-    EventHandler() = default;
-    ~EventHandler() = default;
-
-    /**
-     * @brief New thread is created by 
-     * 
-     * @param event 
-     */
+    virtual ~IEventHandler() = default;
     virtual void handleEvent(const uint16_t& event) = 0;
 };
 
+using eh_ptr = std::shared_ptr<IEventHandler>;
+
+/**
+ * @brief A class that manages a queue of timed events and processes them in a dedicated thread.
+ */
 class EventBox
 {
-    using eh_ptr = std::unique_ptr<EventHandler>;
-private:
-    //! @brief this container contain map executed time- event list from shortest to longest
-    //! @note Executed time is calculated by duration + monil
-    std::map<uint64_t, std::list<int>> eventBox;
-    //! @brief Mutex to protect event box
-    std::mutex eventBoxMtx;
-    //! @brief condition variable
-    std::condition_variable eventBoxCv;
-    //! @brief pointer to implementation of handler;
-    eh_ptr eh;
-
-private:
-    
-    /**
-     * @brief Start process event box
-     * 
-     */
-    void processEventBox();
-
 public:
     /**
-     * @brief Get the system uptime, MONOTONIC.
-     * 
-     * @return[out] uint64_t in miliseconds
+     * @brief Construct a new Event Box object and starts its processing thread.
+     * @param _eh A shared pointer to an object that implements the IEventHandler interface.
      */
-    static uint64_t getCurrentTime();
+    explicit EventBox(eh_ptr _eh);
 
     /**
-     * @brief Process input event after the duration milisec delay
-     * 
-     * @param[in] event 
-     * @param[in] duration 
+     * @brief Destroy the Event Box object, ensuring a graceful shutdown of the processing thread.
      */
+    ~EventBox();
+
     void postEventDelay(const uint16_t& event, const uint64_t& duration);
-    
-    /**
-     * @brief Handle event immediately
-     * 
-     * @param[in] event 
-     */
     void postEvent(const uint16_t& event);
 
-    /**
-     * @brief Cancel event
-     * @note call this method frequently cause bad performance
-     * @param event 
-     * @return true on found and removed sucessfully otherwise false
-     */
-    // bool cancelEvent(const uint16_t& event);
-    
-public:
+private:
+    void processEventBox();
+    uint64_t getCurrentTime();
 
-    EventBox(eh_ptr _eh);
-    ~EventBox() = default;
+    eh_ptr eh;
+    std::map<uint64_t, std::list<uint16_t>> eventBox;
+    std::mutex eventBoxMtx;
+    std::condition_variable eventBoxCv;
+    std::thread processThread;
+    std::atomic<bool> stop_flag{false};
 };
 
-
-
-#endif
+#endif // POST_EVENT_HANDLER_H
